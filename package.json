@@ -1,0 +1,34 @@
+{
+	"author": "Juraj Vitko (ypocat.com)",
+	"name": "4chan",
+	"description": "4chan picture downloader",
+	"keywords": [ "4chan", "picture", "downloader", "utility", "command line" ],
+	"version": "0.0.1",
+	"homepage": "http://github.com/ypocat/4chan",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/ypocat/4chan.git"
+	},
+	"main": "4chan.js",
+	"directories": {
+	},
+	"bin": {
+		"4chan": "./bin/4chan"
+	},
+	"engines": {
+		"node": ">= 0.6.0"
+	},
+	"dependencies": {
+		"laeh2": "*",
+		"optimist": "*",
+		"request": "*",
+		"underscore": "*",
+		"utilz": "*",
+		"async-mini": "*"
+	},
+	"devDependencies": {
+	},
+	"licenses": [
+		{  "type" : "MIT", "url" : "https://raw.github.com/ypocat/4chan/master/LICENSE" }
+	]
+}
