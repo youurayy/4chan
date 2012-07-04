@@ -6,7 +6,7 @@ Install Node.js if you don't have it yet. Then from the command line:
 	
 	[sudo] npm install 4chan -g
 
-T
+Then proceed as follows:
 	
 	mkdir directory
 	cd directory
