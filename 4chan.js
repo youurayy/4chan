@@ -84,6 +84,9 @@ if(argv.m) {
 	}
 }
 
+if(argv.s)
+	console.log('Working in one-shot mode.');
+
 /*
 <div class="file" id="f6487606">
 	<div class="fileInfo">
@@ -151,6 +154,10 @@ function tcb(err) {
 getPics(url, _x(tcb, true, function(err, ret) {
 
 	downloadPics(ret, _x(tcb, true, function(err) {
+		
+		if(argv.s)
+			tcb('Thread snapshot downloaded, exiting.');
+		
 		console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
 		
 		setInterval(_x(tcb, false, function() {
