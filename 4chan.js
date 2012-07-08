@@ -114,6 +114,9 @@ function getPics(url, cb) {
 			order: []
 		};
 
+		if(res.statusCode == 404)
+			tcb(null, 'Thread 404\'d, exiting.');
+
 		if(res.statusCode != 200)
 			cb('Cannot load (status ' + res.statusCode + '): ' + url);
 	
@@ -146,9 +149,15 @@ function getPics(url, cb) {
 	}));
 }
 
-function tcb(err) {
-	console.log(err.stack || err);
-	process.exit(1);
+function tcb(err, msg) {
+	if(err) {
+		console.log(err.stack || err);
+		process.exit(1);
+	}
+	else {
+		console.log(msg);
+		process.exit(0);
+	}
 }
 
 getPics(url, _x(tcb, true, function(err, ret) {
@@ -156,7 +165,7 @@ getPics(url, _x(tcb, true, function(err, ret) {
 	downloadPics(ret, _x(tcb, true, function(err) {
 		
 		if(argv.s)
-			tcb('Thread snapshot downloaded, exiting.');
+			tcb(null, 'Thread snapshot downloaded, exiting.');
 		
 		console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
 		
