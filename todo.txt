@@ -1,0 +1,24 @@
+
+
+404 image is ok
+
+retry on network errors
+
+more threads on single command line - all in either single shot or update mode
+
+local UI
+	4chan -ui 1234
+	
+	localhost:1234
+	
+		display current downloads status
+	
+	localhost:1234/o
+	
+		scan all sub-forum's threads (not currently being downloaded -or- with a flag)
+			display/order by
+				how old they are
+				how many (image) replies they have
+				clickable links to those threads (new tab)
+				enter path where to download + click download button
+		
