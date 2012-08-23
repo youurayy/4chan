@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/ypocat/4chan.png)](http://travis-ci.org/ypocat/4chan)
 # 4chan picture downloader
 
 ## Usage
