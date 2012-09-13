@@ -1,11 +1,11 @@
 var optimist = require('optimist');
 var argv = optimist
-	.usage('\n4chan picture downloader.\nRun in the directory where you want the pictures to be downloaded.\nUsage: $0 [options] <thread URL>')
+	.usage('\n4chan picture downloader.\nRun in the directory where you want the pictures to be downloaded.\nUsage: $0 [options] <thread URL|forum URL>')
 	.boolean('s')
 	.alias('s', 'single-shot')
 	.describe('s', 'Do not keep watching the thread for new posts, quit right after downloading all current pictures.')
 	.alias('r', 'min-resolution')
-	.describe('r', 'Do not download images with resolution less than this, e.g. -r 500x500.')
+	.describe('r', 'Do not download images with resolution lower than this. Default is -r 400x400 for -n, -r 100x100 otherwise.')
 	.boolean('n')
 	.alias('n', 'no-gifs')
 	.describe('n', 'Do not download images in the GIF format.')
@@ -15,6 +15,9 @@ var argv = optimist
 	.boolean('m')
 	.alias('m', 'mobile')
 	.describe('m', 'Separate the pictures based on landscape or portrait orientation.')
+	.alias('f', 'forum')
+	.describe('f', 'Download pics from the whole subforum (a forum URL must be specified).')
+	.boolean('f')
 	.argv;
 
 var _ = require('underscore');
@@ -22,6 +25,7 @@ var fs = require('fs');
 var request = require('request');
 var laeh = require('laeh2').leanStacks(true);
 var async = require('async-mini');
+var cheerio = require('cheerio');
 
 //require('utilz').watchFile(__filename);
 
@@ -41,6 +45,7 @@ if(argv._.length != 1) {
 }
 
 var url = argv._[0], minWidth, minHeight;
+var proto = /(.+?)\/\//.exec(url)[1];
 var current;
 var basedir = fs.realpathSync('.');
 var basedirBasename = basename(basedir);
@@ -54,6 +59,17 @@ if(argv.r) {
 	minWidth = Number(m[1]);
 	minHeight = Number(m[2]);
 	console.log('Filtering by minimum size ' + minWidth + 'x' + minHeight + '.');
+}
+else {
+    if(argv.n) {
+	    minWidth = 400;
+	    minHeight = 400;
+    }
+    else {
+	    minWidth = 100;
+	    minHeight = 100;
+    }
+    console.log('Filtering by reasonable default minimum size ' + minWidth + 'x' + minHeight + '.');
 }
 
 if(argv.n) {
@@ -84,25 +100,89 @@ if(argv.m) {
 	}
 }
 
-if(argv.s)
-	console.log('Working in one-shot mode.');
+if(argv.f) {
+    
+    console.log('Working in forum mode. Single-shot mode is >implied.');
+    argv.s = true;
+    
+    var threads = { arr: [] };
+    
+    getIndex(url, _x(tcb, true, function(err, idx, threads) {
+        
+        var ff = _.map(idx, function(pageUrl) {
+            return _x(null, false, function(cb) {
+                getPage(pageUrl, threads, cb);
+            });
+        });
+        
+        async.parallel(ff, _x(tcb, true, function(err) {
 
-/*
-<div class="file" id="f6487606">
-	<div class="fileInfo">
-		<span class="fileText" id="fT6487606">
-			File: 
-			<a href="//images.4chan.org/o/src/1341382908868.jpg" target="_blank">1341382908868.jpg</a>-(179 KB, 1920x1080, 
-			<span title="1341174530513.jpg">1341174530513.jpg</span>)
-		</span>
-	</div>
-	<a class="fileThumb" href="//images.4chan.org/o/src/1341382908868.jpg" target="_blank">
-		<img src="//0.thumbs.4chan.org/o/thumb/1341382908868s.jpg" alt="179 KB" data-md5="VO7R4e+iSBdi3UIE5ES55Q==" 
-			style="height: 140px; width: 250px;"/>
-	</a>
-</div>
-<div class="postInfo desktop" id="pi6487606">
-*/
+            var f2 = _.map(threads.arr, function(threadUrl) {
+                return _x(null, false, function(cb) {
+                    getThread(threadUrl, cb);
+                });
+            });
+            
+            // be kind to the server, work serially
+            // (there's a lot of threads in a forum)
+            
+            async.series(f2, _x(tcb, true, function(err) {
+                
+                tcb(null, 'Forum snapshot downloaded, exit.');
+            }));
+            
+        }));
+    }));
+    
+}
+else {
+
+    if(argv.s)
+    	console.log('Working in one-shot mode.');
+
+    getThread(url, tcb);
+}
+
+
+function getIndex(url, cb) { // cb(err, idx, threads)
+    
+    console.log('Downloading page and thread index.');
+    
+    request(url, _x(cb, true, function(err, res, body) {
+        
+        var idx = extractPageUrls(body);
+        
+        extractThreadUrls(body, threads);
+        
+        cb(null, idx, threads);
+    }));
+}
+
+function getPage(url, threads, cb) {
+    
+    request(url, _x(cb, true, function(err, res, body) {
+    
+        extractThreadUrls(body, threads);
+        
+        cb(null);
+    }));
+}
+
+function extractThreadUrls(body, threads) {
+
+    var $ = cheerio.load(body);
+    threads.arr = _.union(threads.arr, $('div.thread').map(function() {
+        return url + 'res/' + $(this).attr('id').substr(1);
+    }));
+}
+
+function extractPageUrls(body, idx) {
+    
+    var $ = cheerio.load(body);
+    return $('div.desktop div.pages a').map(function() {
+        return url + $(this).attr('href');
+    });
+}
 
 console.log('press CTRL+C to exit.');
 
@@ -119,31 +199,30 @@ function getPics(url, cb) {
 
 		if(res.statusCode != 200)
 			cb('Cannot load (status ' + res.statusCode + '): ' + url);
-	
-		var m, re = /<a href="(\/\/images.4chan.org\/[^\/]+\/src\/)([^.]+)\.([^"]+)" target="_blank">[^<]+<\/a>-\([^,]+, (\d+)x(\d+),/g;
-		
-		while(m = re.exec(body)) {
+
+        var $ = cheerio.load(body);
+        
+        $('a.fileThumb').each(function(i, elem) {
+            
+            var el = $(this);
+            var imgUrl = proto + el.attr('href'); // http://images.4chan.org/s/src/1347323616243.jpg
+            var m = /\/([^\/\.]+)\.([^\/]+)$/.exec(imgUrl);
+
+            var style = el.find('img').attr('style')
+            var m2 = /height:\s+(\d+)px;\s+width:\s+(\d+)px/.exec(style); // 'height: 125px; width: 83px;'
+            
 			var entry = {
-				file: m[2] + '.' + m[3],
-				base: m[2],
-				url: 'http:' + m[1] + m[2] + '.' + m[3],
-				ext: m[3].toLowerCase(),
-				width: Number(m[4]),
-				height: Number(m[5])
+				file: m[1] + '.' + m[2],
+				base: m[1],
+				url: imgUrl,
+				ext: m[2].toLowerCase(),
+				width: Number(m2[2]),
+				height: Number(m2[1])
 			};
-			
-			if(argv.r && (entry.width < minWidth || entry.height < minHeight))
-				continue;
-				
-			if(argv.n && entry.ext === 'gif')
-				continue;
-				
-			if(argv.g && entry.ext !== 'gif')
-				continue;
-		
+
 			ret.index[entry.file] = entry;
 			ret.order.push(entry);
-		}
+        });
 		
 		cb(null, ret);
 	}));
@@ -160,26 +239,28 @@ function tcb(err, msg) {
 	}
 }
 
-getPics(url, _x(tcb, true, function(err, ret) {
+function getThread(url, cb) { // cb(err, msg)
+    getPics(url, _x(cb, true, function(err, ret) {
 
-	downloadPics(ret, _x(tcb, true, function(err) {
+    	downloadPics(ret, _x(cb, true, function(err) {
 		
-		if(argv.s)
-			tcb(null, 'Thread snapshot downloaded, exiting.');
+    		if(argv.s)
+    			return cb(null, 'Thread snapshot downloaded, exiting.');
 		
-		console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
+    		console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
 		
-		setInterval(_x(tcb, false, function() {
+    		setInterval(_x(cb, false, function() {
 			
-			getPics(url, _x(tcb, true, function(err, ret) {
-				downloadPics(ret, _x(tcb, true, function(err) {
-				}));
-			}));
+    			getPics(url, _x(cb, true, function(err, ret) {
+    				downloadPics(ret, _x(cb, true, function(err) {
+    				}));
+    			}));
 			
-		}), 60000);
-	}));
+    		}), 60000);
+    	}));
 	
-}));
+    }));
+}
 
 function fileExists(file) {
 	try {
@@ -213,7 +294,7 @@ function getFilenameFromEntry(entry) {
 
 function downloadPics(ret, cb) {
 	
-	if(current) {
+	if(current && !argv.f) {
 		_.each(current.order, function(entry) {
 			if(!ret.index[entry.file]) {
 				// previous entry disappeared from the thread, so delete the file

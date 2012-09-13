@@ -19,7 +19,7 @@ Call the program with the `--help` option to see more options, like filtering ba
 ## Warning
 
 4chan is an anonymous board and from time to time, on some of its forums (e.g. `/b/`), users upload illegal content, downloading of which may implicate you in a criminal investigation. Moderators of 4chan are promptly deleting such content from the forum, but when you download images in bulk, it may happen that this illegal content ends up on your harddrive.
-When the 4chan downloader tool, while checking for thread updates, registers that an image was deleted from the thread, it will attempt to delete it from your harddrive. This will of course not happen if you quit the tool prematurely using Ctrl+C.
+When the 4chan downloader tool, while checking for thread updates, registers that an image was deleted from the thread, it will attempt to delete it from your harddrive. This will of course not happen if you quit the tool prematurely using Ctrl+C. This feature is also not active in the "forum" mode.
 On the unsafe forums, the safest way is to inspect the thread before you run the downloading tool, and only running the tool with the one-shot switch (`-s`).
 
 
