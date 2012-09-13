@@ -1,24 +1,24 @@
 var optimist = require('optimist');
 var argv = optimist
-	.usage('\n4chan picture downloader.\nRun in the directory where you want the pictures to be downloaded.\nUsage: $0 [options] <thread URL|forum URL>')
-	.boolean('s')
-	.alias('s', 'single-shot')
-	.describe('s', 'Do not keep watching the thread for new posts, quit right after downloading all current pictures.')
-	.alias('r', 'min-resolution')
-	.describe('r', 'Do not download images with resolution lower than this. Default is -r 400x400 for -n, -r 100x100 otherwise.')
-	.boolean('n')
-	.alias('n', 'no-gifs')
-	.describe('n', 'Do not download images in the GIF format.')
-	.boolean('g')
-	.alias('g', 'only-gifs')
-	.describe('g', 'Only download images in the GIF format.')
-	.boolean('m')
-	.alias('m', 'mobile')
-	.describe('m', 'Separate the pictures based on landscape or portrait orientation.')
-	.alias('f', 'forum')
-	.describe('f', 'Download pics from the whole subforum (a forum URL must be specified).')
-	.boolean('f')
-	.argv;
+    .usage('\n4chan picture downloader.\nRun in the directory where you want the pictures to be downloaded.\nUsage: $0 [options] <thread URL|forum URL>')
+    .boolean('s')
+    .alias('s', 'single-shot')
+    .describe('s', 'Do not keep watching the thread for new posts, quit right after downloading all current pictures.')
+    .alias('r', 'min-resolution')
+    .describe('r', 'Do not download images with resolution lower than this. Default is -r 400x400 for -n, -r 100x100 otherwise.')
+    .boolean('n')
+    .alias('n', 'no-gifs')
+    .describe('n', 'Do not download images in the GIF format.')
+    .boolean('g')
+    .alias('g', 'only-gifs')
+    .describe('g', 'Only download images in the GIF format.')
+    .boolean('m')
+    .alias('m', 'mobile')
+    .describe('m', 'Separate the pictures based on landscape or portrait orientation.')
+    .alias('f', 'forum')
+    .describe('f', 'Download pics from the whole subforum (a forum URL must be specified).')
+    .boolean('f')
+    .argv;
 
 var _ = require('underscore');
 var fs = require('fs');
@@ -30,18 +30,18 @@ var cheerio = require('cheerio');
 //require('utilz').watchFile(__filename);
 
 function basename(fn) {
-	var m = fn.match(/.*?([^\/]+)\/?$/);
-	return m ? m[1] : fn;
+    var m = fn.match(/.*?([^\/]+)\/?$/);
+    return m ? m[1] : fn;
 }
 
 process.on('SIGINT', function() {
-	console.log('\nCTRL+C. 4chan downloader exit.');
-	return process.exit();
+    console.log('\nCTRL+C. 4chan downloader exit.');
+    return process.exit();
 });
 
 if(argv._.length != 1) {
-	console.log(optimist.help());
-	process.exit();
+    console.log(optimist.help());
+    process.exit();
 }
 
 var url = argv._[0], minWidth, minHeight;
@@ -53,51 +53,51 @@ var landscapeDir = basedir + '/' + basedirBasename + '-ls';
 var portraitDir = basedir + '/' + basedirBasename + '-po';
 
 if(argv.r) {
-	var m = /^(\d+)x(\d+)$/.exec(argv.r);
-	if(!m) 
-		tcb('Invalid value for the -r (--min-resolution) parameter, try --help.');
-	minWidth = Number(m[1]);
-	minHeight = Number(m[2]);
-	console.log('Filtering by minimum size ' + minWidth + 'x' + minHeight + '.');
+    var m = /^(\d+)x(\d+)$/.exec(argv.r);
+    if(!m) 
+        tcb('Invalid value for the -r (--min-resolution) parameter, try --help.');
+    minWidth = Number(m[1]);
+    minHeight = Number(m[2]);
+    console.log('Filtering by minimum size ' + minWidth + 'x' + minHeight + '.');
 }
 else {
     if(argv.n) {
-	    minWidth = 400;
-	    minHeight = 400;
+        minWidth = 400;
+        minHeight = 400;
     }
     else {
-	    minWidth = 100;
-	    minHeight = 100;
+        minWidth = 100;
+        minHeight = 100;
     }
     console.log('Filtering by reasonable default minimum size ' + minWidth + 'x' + minHeight + '.');
 }
 
 if(argv.n) {
-	if(argv.g)
-		tcb('Cannot have both -n and -g options, try --help.');
-	console.log('Ignoring all GIFs.');
+    if(argv.g)
+        tcb('Cannot have both -n and -g options, try --help.');
+    console.log('Ignoring all GIFs.');
 }
 
 if(argv.g)
-	console.log('Only downloading GIFs.');
-	
+    console.log('Only downloading GIFs.');
+    
 if(dirExists(landscapeDir) || dirExists(portraitDir)) {
-	argv.m = true;
-	console.log('This is a mobile directory, >implying the -m option.');
+    argv.m = true;
+    console.log('This is a mobile directory, >implying the -m option.');
 }
 else if(argv.m) {
-	console.log('Separating pictures based on landscape/portrait orientation.');
+    console.log('Separating pictures based on landscape/portrait orientation.');
 }
 
 if(argv.m) {
-	if(!dirExists(landscapeDir)) {
-		console.log('Creating ' + landscapeDir);
-		fs.mkdirSync(landscapeDir);
-	}
-	if(!dirExists(portraitDir)) {
-		console.log('Creating ' + portraitDir);
-		fs.mkdirSync(portraitDir);
-	}
+    if(!dirExists(landscapeDir)) {
+        console.log('Creating ' + landscapeDir);
+        fs.mkdirSync(landscapeDir);
+    }
+    if(!dirExists(portraitDir)) {
+        console.log('Creating ' + portraitDir);
+        fs.mkdirSync(portraitDir);
+    }
 }
 
 if(argv.f) {
@@ -138,7 +138,7 @@ if(argv.f) {
 else {
 
     if(argv.s)
-    	console.log('Working in one-shot mode.');
+        console.log('Working in one-shot mode.');
 
     getThread(url, tcb);
 }
@@ -187,18 +187,18 @@ function extractPageUrls(body, idx) {
 console.log('press CTRL+C to exit.');
 
 function getPics(url, cb) {
-	request(url, _x(cb, true, function(err, res, body) {
+    request(url, _x(cb, true, function(err, res, body) {
 
-		var ret = {
-			index: new Object(null),
-			order: []
-		};
+        var ret = {
+            index: new Object(null),
+            order: []
+        };
 
-		if(res.statusCode == 404)
-			tcb(null, 'Thread 404\'d, exiting.');
+        if(res.statusCode == 404)
+            tcb(null, 'Thread 404\'d, exiting.');
 
-		if(res.statusCode != 200)
-			cb('Cannot load (status ' + res.statusCode + '): ' + url);
+        if(res.statusCode != 200)
+            cb('Cannot load (status ' + res.statusCode + '): ' + url);
 
         var $ = cheerio.load(body);
         
@@ -211,133 +211,140 @@ function getPics(url, cb) {
             var style = el.find('img').attr('style')
             var m2 = /height:\s+(\d+)px;\s+width:\s+(\d+)px/.exec(style); // 'height: 125px; width: 83px;'
             
-			var entry = {
-				file: m[1] + '.' + m[2],
-				base: m[1],
-				url: imgUrl,
-				ext: m[2].toLowerCase(),
-				width: Number(m2[2]),
-				height: Number(m2[1])
-			};
+            var entry = {
+                file: m[1] + '.' + m[2],
+                base: m[1],
+                url: imgUrl,
+                ext: m[2].toLowerCase(),
+                width: Number(m2[2]),
+                height: Number(m2[1])
+            };
 
-			ret.index[entry.file] = entry;
-			ret.order.push(entry);
+            var skip = 
+                (argv.r && (entry.width < minWidth || entry.height < minHeight))
+                || (argv.n && entry.ext === 'gif')
+                || (argv.g && entry.ext !== 'gif');
+            
+            if(!skip) {
+                ret.index[entry.file] = entry;
+                ret.order.push(entry);
+            }
         });
-		
-		cb(null, ret);
-	}));
+        
+        cb(null, ret);
+    }));
 }
 
 function tcb(err, msg) {
-	if(err) {
-		console.log(err.stack || err);
-		process.exit(1);
-	}
-	else {
-		console.log(msg);
-		process.exit(0);
-	}
+    if(err) {
+        console.log(err.stack || err);
+        process.exit(1);
+    }
+    else {
+        console.log(msg);
+        process.exit(0);
+    }
 }
 
 function getThread(url, cb) { // cb(err, msg)
     getPics(url, _x(cb, true, function(err, ret) {
 
-    	downloadPics(ret, _x(cb, true, function(err) {
-		
-    		if(argv.s)
-    			return cb(null, 'Thread snapshot downloaded, exiting.');
-		
-    		console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
-		
-    		setInterval(_x(cb, false, function() {
-			
-    			getPics(url, _x(cb, true, function(err, ret) {
-    				downloadPics(ret, _x(cb, true, function(err) {
-    				}));
-    			}));
-			
-    		}), 60000);
-    	}));
-	
+        downloadPics(ret, _x(cb, true, function(err) {
+        
+            if(argv.s)
+                return cb(null, 'Thread snapshot downloaded, exiting.');
+        
+            console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
+        
+            setInterval(_x(cb, false, function() {
+            
+                getPics(url, _x(cb, true, function(err, ret) {
+                    downloadPics(ret, _x(cb, true, function(err) {
+                    }));
+                }));
+            
+            }), 60000);
+        }));
+    
     }));
 }
 
 function fileExists(file) {
-	try {
-		return fs.statSync(file).isFile();
-	}
-	catch(e) {
-		return false;
-	}
+    try {
+        return fs.statSync(file).isFile();
+    }
+    catch(e) {
+        return false;
+    }
 }
 
 function dirExists(file) {
-	try {
-		return fs.statSync(file).isDirectory();
-	}
-	catch(e) {
-		return false;
-	}
+    try {
+        return fs.statSync(file).isDirectory();
+    }
+    catch(e) {
+        return false;
+    }
 }
 
 function getFilenameFromEntry(entry) {
-	if(argv.m) {
-		if(entry.width < entry.height)
-			return portraitDir + '/' + entry.file;
-		else
-			return landscapeDir + '/' + entry.file;
-	}
-	else {
-		return basedir + '/' + entry.file;
-	}
+    if(argv.m) {
+        if(entry.width < entry.height)
+            return portraitDir + '/' + entry.file;
+        else
+            return landscapeDir + '/' + entry.file;
+    }
+    else {
+        return basedir + '/' + entry.file;
+    }
 }
 
 function downloadPics(ret, cb) {
-	
-	if(current && !argv.f) {
-		_.each(current.order, function(entry) {
-			if(!ret.index[entry.file]) {
-				// previous entry disappeared from the thread, so delete the file
-				var fname = getFilenameFromEntry(entry);
-				console.log('Deleting ' + fname);
-				fs.unlink(fname);
-			}
-		});
-	}
-	current = ret;
-	
-	var funcs = [];
-	_.each(ret.order, function(entry) {
-		
-		var fname = getFilenameFromEntry(entry);
-		if(fileExists(fname))
-			return;
-		
-		funcs.push(function(cb) {
-			
-			var opts = {
-				url: entry.url, 
-				encoding: null
-			};
-			
-			request(opts, _x(cb, true, function(err, res, body) {
-				if(res.statusCode == 404) {
-					console.log('Cannot load (status ' + res.statusCode + '): ' + entry.url);
-					cb();
-				}
-				else if(res.statusCode != 200) {
-					cb('Cannot load (status ' + res.statusCode + '): ' + entry.url);
-				}
-				else {
-					fs.writeFile(fname, body, null, _x(cb, true, function(err) {
-						console.log(fname);
-						cb();
-					}));
-				}
-			}));
-			
-		});
-	});
-	
-	async.series(funcs, cb);
+    
+    if(current && !argv.f) {
+        _.each(current.order, function(entry) {
+            if(!ret.index[entry.file]) {
+                // previous entry disappeared from the thread, so delete the file
+                var fname = getFilenameFromEntry(entry);
+                console.log('Deleting ' + fname);
+                fs.unlink(fname);
+            }
+        });
+    }
+    current = ret;
+    
+    var funcs = [];
+    _.each(ret.order, function(entry) {
+        
+        var fname = getFilenameFromEntry(entry);
+        if(fileExists(fname))
+            return;
+        
+        funcs.push(function(cb) {
+            
+            var opts = {
+                url: entry.url, 
+                encoding: null
+            };
+            
+            request(opts, _x(cb, true, function(err, res, body) {
+                if(res.statusCode == 404) {
+                    console.log('Cannot load (status ' + res.statusCode + '): ' + entry.url);
+                    cb();
+                }
+                else if(res.statusCode != 200) {
+                    cb('Cannot load (status ' + res.statusCode + '): ' + entry.url);
+                }
+                else {
+                    fs.writeFile(fname, body, null, _x(cb, true, function(err) {
+                        console.log(fname);
+                        cb();
+                    }));
+                }
+            }));
+            
+        });
+    });
+    
+    async.series(funcs, cb);
 }
