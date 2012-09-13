@@ -195,10 +195,10 @@ function getPics(url, cb) {
         };
 
         if(res.statusCode == 404)
-            tcb(null, 'Thread 404\'d, exiting.');
+            return cb(null, 'Thread 404\'d, exiting.');
 
         if(res.statusCode != 200)
-            cb('Cannot load (status ' + res.statusCode + '): ' + url);
+            return cb('Cannot load (status ' + res.statusCode + '): ' + url);
 
         var $ = cheerio.load(body);
         
