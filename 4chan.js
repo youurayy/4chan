@@ -5,7 +5,7 @@ var argv = optimist
     .alias('s', 'single-shot')
     .describe('s', 'Do not keep watching the thread for new posts, quit right after downloading all current pictures.')
     .alias('r', 'min-resolution')
-    .describe('r', 'Do not download images with resolution lower than this. Default is -r 400x400 for -n, -r 100x100 otherwise.')
+    .describe('r', 'Default is -r 400x400 for -n, -r 100x100 otherwise. Doesn\'t apply for the index image.')
     .boolean('n')
     .alias('n', 'no-gifs')
     .describe('n', 'Do not download images in the GIF format.')
@@ -207,17 +207,24 @@ function getPics(url, cb) {
             var el = $(this);
             var imgUrl = proto + el.attr('href'); // http://images.4chan.org/s/src/1347323616243.jpg
             var m = /\/([^\/\.]+)\.([^\/]+)$/.exec(imgUrl);
-
-            var style = el.find('img').attr('style')
-            var m2 = /height:\s+(\d+)px;\s+width:\s+(\d+)px/.exec(style); // 'height: 125px; width: 83px;'
+            
+            var m2, m3, text = el.parent().find('div.fileInfo span.fileText').text();
+            if(text) {
+                m3 = /(\d+)x(\d+)/.exec(text);
+            }
+            else {
+                // w/h for the index image (will slip through the w/h filter, no choice)
+                var style = el.find('img').attr('style')
+                m2 = /height:\s+(\d+)px;\s+width:\s+(\d+)px/.exec(style); // 'height: 125px; width: 83px;'
+            }
             
             var entry = {
                 file: m[1] + '.' + m[2],
                 base: m[1],
                 url: imgUrl,
                 ext: m[2].toLowerCase(),
-                width: Number(m2[2]),
-                height: Number(m2[1])
+                width: m3 ? m3[1] : Number(m2[2]),
+                height: m3 ? m3[2] : Number(m2[1])
             };
 
             var skip = 
