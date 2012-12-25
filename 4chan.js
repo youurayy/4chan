@@ -18,6 +18,12 @@ var argv = optimist
     .alias('f', 'forum')
     .describe('f', 'Download pics from the whole subforum (a forum URL must be specified).')
     .boolean('f')
+    .alias('t', 'threads')
+    .describe('t', 'Separate the downloaded pics into directories by forum threads. Requires -f. Ignores -m.')
+    .boolean('t')
+    .alias('v', 'move')
+    .describe('v', 'Special exclusive operation. Run after -f and -t to move all pics from subdirs to the current dir.')
+    .boolean('v')
     .argv;
 
 var _ = require('underscore');
@@ -38,6 +44,24 @@ process.on('SIGINT', function() {
     console.log('\nCTRL+C. 4chan downloader exit.');
     return process.exit();
 });
+
+if(argv.v)
+    return movePics(tcb);
+
+function movePics(cb) {
+
+    fs.readdirSync('.').forEach(function(d) {
+    
+        if(/^\./.test(d) || !fs.statSync(d).isDirectory())
+            return;
+    
+        fs.readdirSync(d).forEach(function(f) {
+            fs.renameSync(d + '/' + f, f);
+        });
+        
+        fs.rmdirSync(d);
+    });
+}
 
 if(argv._.length != 1) {
     console.log(optimist.help());
@@ -84,6 +108,10 @@ if(argv.g)
 if(dirExists(landscapeDir) || dirExists(portraitDir)) {
     argv.m = true;
     console.log('This is a mobile directory, >implying the -m option.');
+}
+else if(argv.t && argv.f) {
+    console.log('Separating pictures based on thread.');
+    delete argv.m;
 }
 else if(argv.m) {
     console.log('Separating pictures based on landscape/portrait orientation.');
@@ -186,7 +214,8 @@ function extractPageUrls(body, idx) {
 
 console.log('press CTRL+C to exit.');
 
-function getPics(url, cb) {
+function getPics(url, thread, cb) {
+    
     request(url, _x(cb, true, function(err, res, body) {
 
         var ret = {
@@ -224,7 +253,8 @@ function getPics(url, cb) {
                 url: imgUrl,
                 ext: m[2].toLowerCase(),
                 width: m3 ? m3[1] : Number(m2[2]),
-                height: m3 ? m3[2] : Number(m2[1])
+                height: m3 ? m3[2] : Number(m2[1]),
+                thread: thread
             };
 
             var skip = 
@@ -254,7 +284,15 @@ function tcb(err, msg) {
 }
 
 function getThread(url, cb) { // cb(err, msg)
-    getPics(url, _x(cb, true, function(err, ret) {
+    
+    var thread = /([^\/]+)$/.exec(url)[1];
+    if(argv.t) {
+        var threadDir = basedir + '/' + thread;
+        if(!fs.existsSync(threadDir))
+            fs.mkdirSync(threadDir);
+    }
+    
+    getPics(url, thread, _x(cb, true, function(err, ret) {
 
         downloadPics(ret, _x(cb, true, function(err) {
         
@@ -265,7 +303,7 @@ function getThread(url, cb) { // cb(err, msg)
         
             setInterval(_x(cb, false, function() {
             
-                getPics(url, _x(cb, true, function(err, ret) {
+                getPics(url, thread, _x(cb, true, function(err, ret) {
                     downloadPics(ret, _x(cb, true, function(err) {
                     }));
                 }));
@@ -295,7 +333,10 @@ function dirExists(file) {
 }
 
 function getFilenameFromEntry(entry) {
-    if(argv.m) {
+    if(argv.t) {
+        return basedir + '/' + entry.thread + '/' + entry.file;
+    }
+    else if(argv.m) {
         if(entry.width < entry.height)
             return portraitDir + '/' + entry.file;
         else
@@ -322,7 +363,7 @@ function downloadPics(ret, cb) {
     
     var funcs = [];
     _.each(ret.order, function(entry) {
-        
+
         var fname = getFilenameFromEntry(entry);
         if(fileExists(fname))
             return;
