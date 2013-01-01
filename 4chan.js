@@ -30,6 +30,8 @@ var _ = require('underscore');
 var fs = require('fs');
 var request = require('request');
 var laeh = require('laeh2').leanStacks(true);
+var _e = laeh._e;
+var _x = laeh._x;
 var async = require('async-mini');
 var cheerio = require('cheerio');
 
