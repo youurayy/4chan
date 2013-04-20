@@ -22,8 +22,17 @@ var argv = optimist
     .describe('t', 'Separate the downloaded pics into directories by forum threads. Requires -f. Ignores -m.')
     .boolean('t')
     .alias('v', 'move')
-    .describe('v', 'Special exclusive operation. Run after -f and -t to move all pics from subdirs to the current dir.')
+    .describe('v', 'Run after -f -t to move all pics from subdirs to the current dir.')
     .boolean('v')
+    .alias('d', 'delete')
+    .describe('d', 'Run after -f -t and before -v. Deletes empty dirs or with a dash in name. If given a number, delete dirs with less than or equal number of files.')
+    .boolean('d')
+    .alias('y', 'dry-run')
+    .describe('y', 'Use with -d. Only show what would be deleted, but don\'t delete anything.')
+    .boolean('y')
+    .alias('p', 'split')
+    .describe('p', 'Run after -v. Randomize and split into subfolders. Takes an optional number. Default is 1000.')
+    .boolean('p')
     .argv;
 
 var _ = require('underscore');
@@ -34,8 +43,16 @@ var _e = laeh._e;
 var _x = laeh._x;
 var async = require('async-mini');
 var cheerio = require('cheerio');
+var fsutil = require('fsutil');
 
 //require('utilz').watchFile(__filename);
+
+var url = argv._[0], minWidth, minHeight;
+var current;
+var basedir = fs.realpathSync('.');
+var basedirBasename = basename(basedir);
+var landscapeDir = basedir + '/' + basedirBasename + '-ls';
+var portraitDir = basedir + '/' + basedirBasename + '-po';
 
 function basename(fn) {
     var m = fn.match(/.*?([^\/]+)\/?$/);
@@ -49,34 +66,19 @@ process.on('SIGINT', function() {
 
 if(argv.v)
     return movePics(tcb);
-
-function movePics(cb) {
-
-    fs.readdirSync('.').forEach(function(d) {
     
-        if(/^\./.test(d) || !fs.statSync(d).isDirectory())
-            return;
-    
-        fs.readdirSync(d).forEach(function(f) {
-            fs.renameSync(d + '/' + f, f);
-        });
-        
-        fs.rmdirSync(d);
-    });
-}
+if(argv.d)
+    return deleteDirs(tcb);
 
+if(argv.p)
+    return splitPics(tcb);
+    
 if(argv._.length != 1) {
     console.log(optimist.help());
     process.exit();
 }
 
-var url = argv._[0], minWidth, minHeight;
 var proto = /(.+?)\/\//.exec(url)[1];
-var current;
-var basedir = fs.realpathSync('.');
-var basedirBasename = basename(basedir);
-var landscapeDir = basedir + '/' + basedirBasename + '-ls';
-var portraitDir = basedir + '/' + basedirBasename + '-po';
 
 if(argv.r) {
     var m = /^(\d+)x(\d+)$/.exec(argv.r);
@@ -173,6 +175,94 @@ else {
     getThread(url, tcb);
 }
 
+function movePics(cb) {
+
+    fs.readdirSync('.').forEach(function(d) {
+    
+        if(/^\./.test(d) || !fs.statSync(d).isDirectory())
+            return;
+    
+        fs.readdirSync(d).forEach(function(f) {
+            fs.renameSync(d + '/' + f, f);
+        });
+        
+        fs.rmdirSync(d);
+    });
+    
+    cb();
+}
+
+function splitPics(cb) {
+
+    var num = typeof(url) === 'number' ? url : 1000;
+    var arr = shuffleArray(fs.readdirSync('.'));
+    var cut, dir = 1, pfx = '';
+    
+    var digits = Math.floor(log10(arr.length / num)) + 1;
+    while(digits--)
+        pfx += '0';
+    
+    var cur = /\/([^\/]+)$/.exec(process.cwd())[1];
+    
+    while((cut = arr.splice(0, num)).length) {
+        
+        var s = String(dir++);
+        s = cur + '.' + pfx.slice(s.length) + s;
+        
+        console.log('creating dir %s', s);
+        fs.mkdirSync(s);
+        
+        cut.forEach(function(v) {
+            fs.renameSync(v, s + '/' + v);
+        });
+    }
+    
+    cb();
+}
+
+function log10(val) {
+    // http://stackoverflow.com/a/3019290/448978
+    return Math.log(val) / Math.LN10;
+}
+
+function shuffleArray(array) {
+    // http://stackoverflow.com/a/12646864/448978
+    for(var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    return array;
+}
+
+function deleteDirs(cb) {
+    
+    if(argv.y)
+        console.log('Dry delete run, only print what would be done.');
+    
+    var minNumber = typeof(url) === 'number' ? url : 0;
+    var len;
+    
+    fs.readdirSync('.').forEach(function(d) {
+
+        if(/^\./.test(d) || !fs.statSync(d).isDirectory())
+            return;
+        
+        if(d.indexOf('-') !== -1) {
+            console.log('removing marked directory: ' + d);
+            if(!argv.y)
+                fsutil.rm_rf(d);
+        } 
+        else if((len = fs.readdirSync(d).length) <= minNumber) {
+            console.log('removing %s: %s', len === 0 ? 'empty directory' : ('directory with ' + len + ' items'), d);
+            if(!argv.y)
+                fsutil.rm_rf(d);
+        }
+    });
+    
+    cb();
+}
 
 function getIndex(url, cb) { // cb(err, idx, threads)
     
@@ -280,7 +370,7 @@ function tcb(err, msg) {
         process.exit(1);
     }
     else {
-        console.log(msg);
+        console.log(msg || 'Done.');
         process.exit(0);
     }
 }

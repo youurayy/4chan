@@ -3,7 +3,7 @@
 	"name": "4chan",
 	"description": "4chan picture downloader",
 	"keywords": [ "4chan", "picture", "downloader", "utility", "command line" ],
-	"version": "0.0.7",
+	"version": "0.0.8",
 	"homepage": "http://github.com/ypocat/4chan",
 	"repository": {
 		"type": "git",
@@ -25,7 +25,8 @@
 		"underscore": "*",
 		"utilz": "*",
 		"async-mini": "*",
-		"cheerio": "*"
+		"cheerio": "*",
+		"fsutil": "*"
 	},
 	"devDependencies": {
 	},
