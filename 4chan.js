@@ -183,7 +183,13 @@ function movePics(cb) {
             return;
     
         fs.readdirSync(d).forEach(function(f) {
-            fs.renameSync(d + '/' + f, f);
+            
+            var t = f, m;
+            // undo the splitPics renaming if present
+            if(m = /^\d+-(\d+\..+)$/.exec(t))
+                t = m[1];
+            
+            fs.renameSync(d + '/' + f, t);
         });
         
         fs.rmdirSync(d);
@@ -203,6 +209,13 @@ function splitPics(cb) {
         pfx += '0';
     
     var cur = /\/([^\/]+)$/.exec(process.cwd())[1];
+
+    var file = 1, pfx2 = '';
+    var digits2 = Math.floor(log10(arr.length)) + 1;
+    while(digits2--)
+        pfx2 += '0';
+        
+    var time = Math.floor(Date.now() / 1000) - arr.length;
     
     while((cut = arr.splice(0, num)).length) {
         
@@ -213,7 +226,12 @@ function splitPics(cb) {
         fs.mkdirSync(s);
         
         cut.forEach(function(v) {
-            fs.renameSync(v, s + '/' + v);
+            
+            var q = String(file++);
+            q = pfx2.slice(q.length) + q;
+            
+            fs.utimesSync(v, time, time++);
+            fs.renameSync(v, s + '/' + q + '-' + v);
         });
     }
     
