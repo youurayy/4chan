@@ -66,13 +66,13 @@ process.on('SIGINT', function() {
 
 if(argv.v)
     return movePics(tcb);
-    
+
 if(argv.d)
     return deleteDirs(tcb);
 
 if(argv.p)
     return splitPics(tcb);
-    
+
 if(argv._.length != 1) {
     console.log(optimist.help());
     process.exit();
@@ -82,7 +82,7 @@ var proto = /(.+?)\/\//.exec(url)[1];
 
 if(argv.r) {
     var m = /^(\d+)x(\d+)$/.exec(argv.r);
-    if(!m) 
+    if(!m)
         tcb('Invalid value for the -r (--min-resolution) parameter, try --help.');
     minWidth = Number(m[1]);
     minHeight = Number(m[2]);
@@ -108,7 +108,7 @@ if(argv.n) {
 
 if(argv.g)
     console.log('Only downloading GIFs.');
-    
+
 if(dirExists(landscapeDir) || dirExists(portraitDir)) {
     argv.m = true;
     console.log('This is a mobile directory, >implying the -m option.');
@@ -133,39 +133,39 @@ if(argv.m) {
 }
 
 if(argv.f) {
-    
+
     console.log('Working in forum mode. Single-shot mode is >implied.');
     argv.s = true;
-    
-    var threads = { arr: [] };
-    
-    getIndex(url, _x(tcb, true, function(err, idx, threads) {
-        
-        var ff = _.map(idx, function(pageUrl) {
+
+    var threads = {};
+
+    getIndex(url, threads, _x(tcb, true, function(err, idx) {
+
+        var ff = _.map(idx, function(v, pageUrl) {
             return _x(null, false, function(cb) {
                 getPage(pageUrl, threads, cb);
             });
         });
-        
+
         async.parallel(ff, _x(tcb, true, function(err) {
 
-            var f2 = _.map(threads.arr, function(threadUrl) {
+            var f2 = _.map(threads, function(v, threadUrl) {
                 return _x(null, false, function(cb) {
                     getThread(threadUrl, cb);
                 });
             });
-            
+
             // be kind to the server, work serially
             // (there's a lot of threads in a forum)
-            
+
             async.series(f2, _x(tcb, true, function(err) {
-                
+
                 tcb(null, 'Forum snapshot downloaded, exit.');
             }));
-            
+
         }));
     }));
-    
+
 }
 else {
 
@@ -178,23 +178,23 @@ else {
 function movePics(cb) {
 
     fs.readdirSync('.').forEach(function(d) {
-    
+
         if(/^\./.test(d) || !fs.statSync(d).isDirectory())
             return;
-    
+
         fs.readdirSync(d).forEach(function(f) {
-            
+
             var t = f, m;
             // undo the splitPics renaming if present
             if(m = /^\d+-(\d+\..+)$/.exec(t))
                 t = m[1];
-            
+
             fs.renameSync(d + '/' + f, t);
         });
-        
+
         fs.rmdirSync(d);
     });
-    
+
     cb();
 }
 
@@ -203,38 +203,38 @@ function splitPics(cb) {
     var num = typeof(url) === 'number' ? url : 1000;
     var arr = shuffleArray(fs.readdirSync('.'));
     var cut, dir = 1, pfx = '';
-    
+
     var digits = Math.floor(log10(arr.length / num)) + 1;
     while(digits--)
         pfx += '0';
-    
+
     var cur = /\/([^\/]+)$/.exec(process.cwd())[1];
 
     var file = 1, pfx2 = '';
     var digits2 = Math.floor(log10(arr.length)) + 1;
     while(digits2--)
         pfx2 += '0';
-        
+
     var time = Math.floor(Date.now() / 1000) - arr.length;
-    
+
     while((cut = arr.splice(0, num)).length) {
-        
+
         var s = String(dir++);
         s = cur + '.' + pfx.slice(s.length) + s;
-        
+
         console.log('creating dir %s', s);
         fs.mkdirSync(s);
-        
+
         cut.forEach(function(v) {
-            
+
             var q = String(file++);
             q = pfx2.slice(q.length) + q;
-            
+
             fs.utimesSync(v, time, time++);
             fs.renameSync(v, s + '/' + q + '-' + v);
         });
     }
-    
+
     cb();
 }
 
@@ -255,53 +255,47 @@ function shuffleArray(array) {
 }
 
 function deleteDirs(cb) {
-    
+
     if(argv.y)
         console.log('Dry delete run, only print what would be done.');
-    
+
     var minNumber = typeof(url) === 'number' ? url : 0;
     var len;
-    
+
     fs.readdirSync('.').forEach(function(d) {
 
         if(/^\./.test(d) || !fs.statSync(d).isDirectory())
             return;
-        
+
         if(d.indexOf('-') !== -1) {
             console.log('removing marked directory: ' + d);
             if(!argv.y)
                 fsutil.rm_rf(d);
-        } 
+        }
         else if((len = fs.readdirSync(d).length) <= minNumber) {
             console.log('removing %s: %s', len === 0 ? 'empty directory' : ('directory with ' + len + ' items'), d);
             if(!argv.y)
                 fsutil.rm_rf(d);
         }
     });
-    
+
     cb();
 }
 
-function getIndex(url, cb) { // cb(err, idx, threads)
-    
+function getIndex(url, threads, cb) { // cb(err, idx)
+
     console.log('Downloading page and thread index.');
-    
+
     request(url, _x(cb, true, function(err, res, body) {
-        
         var idx = extractPageUrls(body);
-        
         extractThreadUrls(body, threads);
-        
-        cb(null, idx, threads);
+        cb(null, idx);
     }));
 }
 
 function getPage(url, threads, cb) {
-    
-    request(url, _x(cb, true, function(err, res, body) {
-    
+    request({ url: url }, _x(cb, true, function(err, res, body) {
         extractThreadUrls(body, threads);
-        
         cb(null);
     }));
 }
@@ -309,23 +303,28 @@ function getPage(url, threads, cb) {
 function extractThreadUrls(body, threads) {
 
     var $ = cheerio.load(body);
-    threads.arr = _.union(threads.arr, $('div.thread').map(function() {
-        return url + 'res/' + $(this).attr('id').substr(1);
-    }));
+    $("a.button:contains('View Thread')").each(function(i, e) {
+        var a = url + $(this).attr('href');
+        threads[a] = true;
+    });
 }
 
-function extractPageUrls(body, idx) {
-    
+function extractPageUrls(body) {
+
     var $ = cheerio.load(body);
-    return $('div.desktop div.pages a').map(function() {
-        return url + $(this).attr('href');
+    var links = {};
+    $('div.desktop div.pages a').each(function() {
+        var lnk = $(this).attr('href');
+        if(lnk !== './catalog')
+            links[url + lnk] = true;
     });
+    return links;
 }
 
 console.log('press CTRL+C to exit.');
 
 function getPics(url, thread, cb) {
-    
+
     request(url, _x(cb, true, function(err, res, body) {
 
         var ret = {
@@ -340,23 +339,23 @@ function getPics(url, thread, cb) {
             return cb('Cannot load (status ' + res.statusCode + '): ' + url);
 
         var $ = cheerio.load(body);
-        
+
         $('a.fileThumb').each(function(i, elem) {
-            
+
             var el = $(this);
             var imgUrl = proto + el.attr('href'); // http://images.4chan.org/s/src/1347323616243.jpg
             var m = /\/([^\/\.]+)\.([^\/]+)$/.exec(imgUrl);
-            
-            var m2, m3, text = el.parent().find('div.fileInfo span.fileText').text();
+
+            var m2, m3, text = el.parent().find('div.fileText').text();
             if(text) {
                 m3 = /(\d+)x(\d+)/.exec(text);
             }
             else {
-                // w/h for the index image (will slip through the w/h filter, no choice)
+                // w/h for the index image
                 var style = el.find('img').attr('style')
                 m2 = /height:\s+(\d+)px;\s+width:\s+(\d+)px/.exec(style); // 'height: 125px; width: 83px;'
             }
-            
+
             var entry = {
                 file: m[1] + '.' + m[2],
                 base: m[1],
@@ -367,17 +366,17 @@ function getPics(url, thread, cb) {
                 thread: thread
             };
 
-            var skip = 
+            var skip =
                 (argv.r && (entry.width < minWidth || entry.height < minHeight))
                 || (argv.n && entry.ext === 'gif')
                 || (argv.g && entry.ext !== 'gif');
-            
+
             if(!skip) {
                 ret.index[entry.file] = entry;
                 ret.order.push(entry);
             }
         });
-        
+
         cb(null, ret);
     }));
 }
@@ -394,33 +393,33 @@ function tcb(err, msg) {
 }
 
 function getThread(url, cb) { // cb(err, msg)
-    
+
     var thread = /([^\/]+)$/.exec(url)[1];
     if(argv.t) {
         var threadDir = basedir + '/' + thread;
         if(!fs.existsSync(threadDir))
             fs.mkdirSync(threadDir);
     }
-    
+
     getPics(url, thread, _x(cb, true, function(err, ret) {
 
         downloadPics(ret, _x(cb, true, function(err) {
-        
+
             if(argv.s)
                 return cb(null, 'Thread snapshot downloaded, exiting.');
-        
+
             console.log("Initial download finished, \"I am monitoring this thread\" for new items now.");
-        
+
             setInterval(_x(cb, false, function() {
-            
+
                 getPics(url, thread, _x(cb, true, function(err, ret) {
                     downloadPics(ret, _x(cb, true, function(err) {
                     }));
                 }));
-            
+
             }), 60000);
         }));
-    
+
     }));
 }
 
@@ -458,7 +457,7 @@ function getFilenameFromEntry(entry) {
 }
 
 function downloadPics(ret, cb) {
-    
+
     if(current && !argv.f) {
         _.each(current.order, function(entry) {
             if(!ret.index[entry.file]) {
@@ -470,21 +469,21 @@ function downloadPics(ret, cb) {
         });
     }
     current = ret;
-    
+
     var funcs = [];
     _.each(ret.order, function(entry) {
 
         var fname = getFilenameFromEntry(entry);
         if(fileExists(fname))
             return;
-        
+
         funcs.push(function(cb) {
-            
+
             var opts = {
-                url: entry.url, 
+                url: entry.url,
                 encoding: null
             };
-            
+
             request(opts, _x(cb, true, function(err, res, body) {
                 if(res.statusCode == 404) {
                     console.log('Cannot load (status ' + res.statusCode + '): ' + entry.url);
@@ -500,9 +499,9 @@ function downloadPics(ret, cb) {
                     }));
                 }
             }));
-            
+
         });
     });
-    
+
     async.series(funcs, cb);
 }
