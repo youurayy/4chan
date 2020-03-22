@@ -141,28 +141,14 @@ if(argv.f) {
 
     getIndex(url, threads, _x(tcb, true, function(err, idx) {
 
-        var ff = _.map(idx, function(v, pageUrl) {
+        var ff = _.map(threads, function(v, threadUrl) {
             return _x(null, false, function(cb) {
-                getPage(pageUrl, threads, cb);
+                getThread(threadUrl, cb);
             });
         });
 
         async.parallel(ff, _x(tcb, true, function(err) {
-
-            var f2 = _.map(threads, function(v, threadUrl) {
-                return _x(null, false, function(cb) {
-                    getThread(threadUrl, cb);
-                });
-            });
-
-            // be kind to the server, work serially
-            // (there's a lot of threads in a forum)
-
-            async.series(f2, _x(tcb, true, function(err) {
-
-                tcb(null, 'Forum snapshot downloaded, exit.');
-            }));
-
+          tcb(null, 'Forum snapshot downloaded, exit.');
         }));
     }));
 
@@ -286,46 +272,40 @@ function getIndex(url, threads, cb) { // cb(err, idx)
 
     console.log('Downloading page and thread index.');
 
-    request(url, _x(cb, true, function(err, res, body) {
-        var idx = extractPageUrls(body);
-        extractThreadUrls(body, threads);
+    request(ua(url), _x(cb, true, function(err, res, body) {
+        var idx = extractPageUrls(body, threads);
         cb(null, idx);
     }));
 }
 
-function getPage(url, threads, cb) {
-    request({ url: url }, _x(cb, true, function(err, res, body) {
-        extractThreadUrls(body, threads);
-        cb(null);
-    }));
-}
+function extractPageUrls(body, links) {
 
-function extractThreadUrls(body, threads) {
+    var base = url.replace(/catalog/, 'thread');
 
-    var $ = cheerio.load(body);
-    $("a.button:contains('View Thread')").each(function(i, e) {
-        var a = url + $(this).attr('href');
-        threads[a] = true;
+    var json = /var catalog = (.+);var style_group/.exec(body)[1]
+    var doc = JSON.parse(json);
+
+    Object.keys(doc.threads).forEach((id) => {
+      links[base + '/' + id] = true;
     });
-}
 
-function extractPageUrls(body) {
-
-    var $ = cheerio.load(body);
-    var links = {};
-    $('div.desktop div.pages a').each(function() {
-        var lnk = $(this).attr('href');
-        if(lnk !== './catalog')
-            links[url + lnk] = true;
-    });
     return links;
 }
 
 console.log('press CTRL+C to exit.');
 
+function ua(url) {
+  return {
+    url: url,
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+    }
+  }
+}
+
 function getPics(url, thread, cb) {
 
-    request(url, _x(cb, true, function(err, res, body) {
+    request(ua(url), _x(cb, true, function(err, res, body) {
 
         var ret = {
             index: new Object(null),
@@ -479,10 +459,9 @@ function downloadPics(ret, cb) {
 
         funcs.push(function(cb) {
 
-            var opts = {
-                url: entry.url,
-                encoding: null
-            };
+            var opts = ua(entry.url);
+            opts.encoding = null;
+            opts.referer = 'https://boards.4chan.org/';
 
             request(opts, _x(cb, true, function(err, res, body) {
                 if(res.statusCode == 404) {
