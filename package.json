@@ -3,7 +3,7 @@
 	"name": "4chan",
 	"description": "4chan picture downloader",
 	"keywords": [ "4chan", "picture", "downloader", "utility", "command line" ],
-	"version": "0.0.10",
+	"version": "0.1.0",
 	"repository": {
 		"type": "git",
 		"url": "git://github.com/youurayy/4chan.git"
